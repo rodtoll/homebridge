@@ -146,7 +146,9 @@ ISYPlatform.prototype.accessories = function(callback) {
 					homeKitDevice = new ISYDoorWindowSensorAccessory(that.log,device);
 				} else if(device.deviceType == that.isy.DEVICE_TYPE_ALARM_PANEL) {
 					homeKitDevice = new ISYElkAlarmPanelAccessory(that.log,device);
-				}
+				} else if(device.deviceType == that.isy.DEVICE_TYPE_MOTION_SENSOR) {
+                    homeKitDevice = new ISYMotionSensorAccessory(that.log,device);
+                }
 				if(homeKitDevice != null) {
 					// Make sure the device is address to the global map
 					deviceMap[device.address] = homeKitDevice;
@@ -621,6 +623,53 @@ ISYDoorWindowSensorAccessory.prototype.getServices = function() {
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
+// MOTION SENSOR - ISYMotionSensorAccessory
+// Implements the ContactSensor service.
+
+// Constructs a Door Window Sensor (contact sensor) accessory. log = HomeBridge logger, device = wrapped isy-js device.
+function ISYMotionSensorAccessory(log,device) {
+	ISYAccessoryBaseSetup(this,log,device);
+}
+
+// Handles the identify command.
+ISYMotionSensorAccessory.prototype.identify = function(callback) {
+	// Do the identify action
+	callback();
+}
+
+// Handles the request to get he current motion sensor state.
+ISYMotionSensorAccessory.prototype.getCurrentMotionSensorState = function(callback) {
+	callback(null,this.device.getCurrentMotionSensorState());
+}
+
+// Mirrors change in the state of the underlying isj-js device object.
+ISYMotionSensorAccessory.prototype.handleExternalChange = function() {
+	this.sensorService
+		.setCharacteristic(Characteristic.MotionDetected, this.device.getCurrentMotionSensorState());
+}
+
+// Returns the set of services supported by this object.
+ISYMotionSensorAccessory.prototype.getServices = function() {
+	var informationService = new Service.AccessoryInformation();
+	
+    informationService
+      .setCharacteristic(Characteristic.Manufacturer, "SmartHome")
+      .setCharacteristic(Characteristic.Model, this.device.deviceFriendlyName)
+      .setCharacteristic(Characteristic.SerialNumber, this.device.address);	
+	  
+    var sensorService = new Service.MotionSensor();
+	
+    this.sensorService = sensorService;
+    this.informationService = informationService;	
+    
+    sensorService
+      .getCharacteristic(Characteristic.MotionDetected)
+      .on('get', this.getCurrentMotionSensorState.bind(this));
+    
+    return [informationService, sensorService];	
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
 // ELK SENSOR PANEL - ISYElkAlarmPanelAccessory
 // Implements the SecuritySystem service for an elk security panel connected to the isy system
 
@@ -761,3 +810,6 @@ module.exports.accessory = ISYLockAccessory;
 module.exports.accessory = ISYOutletAccessory;
 module.exports.accessory = ISYDoorWindowSensorAccessory;
 module.exports.accessory = ISYElkAlarmPanelAccessory;
+module.exports.accessory = ISYMotionSensorAccessory
+
+
